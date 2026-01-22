@@ -1,21 +1,41 @@
-import { useState, useMemo } from 'react';
-import { Bell, Calendar, ExternalLink, CheckCircle, AlertCircle, Info, FileText, Users, Trophy } from 'lucide-react';
-import { mockNotifications, getNotificationsByExam } from '../data/mockNotifications';
+import { useState, useEffect } from 'react';
+import { Bell, Calendar, ExternalLink, CheckCircle, AlertCircle, Info, FileText, Users, Trophy, Loader2 } from 'lucide-react';
+import { getNotifications } from '../services/api';
 
 const NotificationsPage = () => {
   const [selectedExam, setSelectedExam] = useState('All');
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const exams = ['All', 'CDS', 'NDA', 'AFCAT', 'CAPF', 'SSB'];
 
-  const filteredNotifications = useMemo(() => {
-    return getNotificationsByExam(selectedExam);
+  useEffect(() => {
+    fetchNotifications();
   }, [selectedExam]);
 
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      // Pass selectedExam as 'type' filter to API
+      const data = await getNotifications({ type: selectedExam });
+      setNotifications(data);
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+      setError('Failed to load notifications. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatDate = (dateString) => {
+    if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
   };
 
@@ -53,7 +73,7 @@ const NotificationsPage = () => {
     return null;
   };
 
-  const unreadCount = mockNotifications.filter(n => !n.isRead).length;
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
@@ -75,7 +95,7 @@ const NotificationsPage = () => {
               </div>
             </div>
           </div>
-          {unreadCount > 0 && (
+          {unreadCount > 0 && !loading && (
             <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-primary-600/20 border border-primary-500/40 rounded-lg">
               <span className="text-sm text-slate-300">Unread:</span>
               <span className="px-2 py-1 bg-primary-600 text-white text-xs font-bold rounded-full">
@@ -95,11 +115,10 @@ const NotificationsPage = () => {
               <button
                 key={exam}
                 onClick={() => setSelectedExam(exam)}
-                className={`px-4 py-2 rounded-md font-medium text-xs tracking-wide uppercase border ${
-                  selectedExam === exam
+                className={`px-4 py-2 rounded-md font-medium text-xs tracking-wide uppercase border ${selectedExam === exam
                     ? 'bg-primary-600 text-white border-primary-500 shadow-sm shadow-primary-900/40'
                     : 'bg-slate-800/70 text-slate-200 border-slate-700 hover:bg-slate-700/80 hover:border-slate-500'
-                }`}
+                  }`}
               >
                 {exam}
               </button>
@@ -110,15 +129,28 @@ const NotificationsPage = () => {
 
       {/* Notifications List */}
       <div className="space-y-4">
-        {filteredNotifications.length > 0 ? (
-          filteredNotifications.map((notification) => {
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="h-8 w-8 text-primary-500 animate-spin" />
+          </div>
+        ) : error ? (
+          <div className="text-center py-12 text-red-400">
+            <p>{error}</p>
+            <button
+              onClick={fetchNotifications}
+              className="mt-4 px-4 py-2 bg-slate-800 rounded text-sm hover:bg-slate-700"
+            >
+              Retry
+            </button>
+          </div>
+        ) : notifications.length > 0 ? (
+          notifications.map((notification) => {
             const CategoryIcon = getCategoryIcon(notification.category);
             return (
               <div
-                key={notification.id}
-                className={`card relative overflow-hidden ${
-                  !notification.isRead ? 'border-primary-500/50 bg-primary-500/5' : ''
-                }`}
+                key={notification._id || notification.id}
+                className={`card relative overflow-hidden ${!notification.isRead ? 'border-primary-500/50 bg-primary-500/5' : ''
+                  }`}
               >
                 {/* Unread indicator */}
                 {!notification.isRead && (

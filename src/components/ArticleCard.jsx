@@ -3,16 +3,19 @@ import { Calendar, BookOpen, Bookmark, BookmarkCheck } from 'lucide-react';
 import { useBookmarks } from '../hooks/useBookmarks';
 
 const ArticleCard = ({ article }) => {
+  // Use _id from MongoDB or fallback to id
+  const articleId = article._id || article.id;
+  
   const { checkBookmark, addBookmark, deleteBookmark } = useBookmarks();
-  const isBookmarked = checkBookmark(article.id);
+  const isBookmarked = checkBookmark(articleId);
 
   const handleBookmarkClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
     if (isBookmarked) {
-      deleteBookmark(article.id);
+      deleteBookmark(articleId);
     } else {
-      addBookmark(article.id);
+      addBookmark(articleId);
     }
   };
 
@@ -36,7 +39,7 @@ const ArticleCard = ({ article }) => {
   };
 
   return (
-    <Link to={`/article/${article.id}`}>
+    <Link to={`/article/${articleId}`}>
       <article className="card hover:scale-[1.01] transition-transform duration-200 group relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-tr from-primary-500/5 via-transparent to-primary-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
         <div className="flex justify-between items-start mb-3 relative z-10">
@@ -44,7 +47,7 @@ const ArticleCard = ({ article }) => {
             <span className={`badge ${getCategoryColor(article.category)}`}>
               {article.category}
             </span>
-            {article.examTags.slice(0, 2).map((tag) => (
+            {article.examTags && article.examTags.slice(0, 2).map((tag) => (
               <span 
                 key={tag} 
                 className="badge bg-primary-500/10 text-primary-200 border border-primary-500/40"
@@ -52,7 +55,7 @@ const ArticleCard = ({ article }) => {
                 {tag}
               </span>
             ))}
-            {article.examTags.length > 2 && (
+            {article.examTags && article.examTags.length > 2 && (
               <span className="badge bg-slate-800 text-slate-300 border border-slate-600">
                 +{article.examTags.length - 2}
               </span>

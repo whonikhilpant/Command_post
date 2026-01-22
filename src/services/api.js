@@ -1,377 +1,236 @@
-/**
- * API Service Layer
- * 
- * This file contains all API calls to your backend.
- * Replace the example URLs with your actual backend URL.
- * 
- * TO USE THIS FILE:
- * 1. Rename this file from api.js.example to api.js
- * 2. Update API_BASE_URL with your backend URL
- * 3. Import and use these functions in your components
- */
+import axios from 'axios';
 
-const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:3000/api';
+// Base URL for your backend API
+const API_URL = 'http://localhost:5000/api';
 
-/**
- * Helper function to make API calls
- * Handles authentication, errors, and JSON parsing
- */
-const apiCall = async (endpoint, options = {}) => {
-  // Get authentication token from localStorage
-  const token = localStorage.getItem('token');
-  
-  // Default headers
-  const headers = {
-    'Content-Type': 'application/json',
-  };
+// ============================================
+// ARTICLES API
+// ============================================
 
-  // Add authorization header if token exists
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  // Merge custom headers with defaults
-  const config = {
-    headers: {
-      ...headers,
-      ...(options.headers || {})
-    },
-    ...options
-  };
-
-  // Remove headers from options to avoid duplication
-  delete config.headers.headers;
-
+// Get all articles with filters
+export const getArticles = async (filters = {}) => {
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-    
-    // Parse JSON response
-    const data = await response.json();
-    
-    // Check if response is ok (status 200-299)
-    if (!response.ok) {
-      throw new Error(data.message || `API request failed: ${response.statusText}`);
+    const params = new URLSearchParams();
+
+    // Map 'exam' to 'examTag' for backend
+    if (filters.category && filters.category !== 'All') {
+      params.append('category', filters.category);
     }
-    
-    return data;
+    if (filters.exam && filters.exam !== 'All') {
+      params.append('examTag', filters.exam);
+    }
+    if (filters.search) {
+      params.append('search', filters.search);
+    }
+
+    const response = await axios.get(`${API_URL}/articles?${params}`);
+
+    // Backend already returns { articles: [...], total: ... }
+    return response.data;
   } catch (error) {
-    console.error('API Error:', error);
+    console.error('Error fetching articles:', error);
+    throw error;
+  }
+};
+
+// Get single article by ID
+export const getArticleById = async (id) => {
+  try {
+    const response = await axios.get(`${API_URL}/articles/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching article:', error);
+    throw error;
+  }
+};
+
+// Create new article
+export const createArticle = async (articleData) => {
+  try {
+    const response = await axios.post(`${API_URL}/articles`, articleData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating article:', error);
+    throw error;
+  }
+};
+
+// Update article
+export const updateArticle = async (id, articleData) => {
+  try {
+    const response = await axios.put(`${API_URL}/articles/${id}`, articleData);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating article:', error);
+    throw error;
+  }
+};
+
+// Delete article
+export const deleteArticle = async (id) => {
+  try {
+    const response = await axios.delete(`${API_URL}/articles/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting article:', error);
     throw error;
   }
 };
 
 // ============================================
-// AUTHENTICATION API CALLS
+// BOOKMARKS API (Backend)
 // ============================================
 
-/**
- * Register a new user
- * @param {Object} userData - { name, email, password, phone, examPreparing, targetYear }
- * @returns {Promise<Object>} - { user, token }
- */
-export const registerUser = async (userData) => {
-  return apiCall('/auth/register', {
-    method: 'POST',
-    body: JSON.stringify(userData)
-  });
-};
-
-/**
- * Login user
- * @param {string} email - User email
- * @param {string} password - User password
- * @returns {Promise<Object>} - { user, token }
- */
-export const loginUser = async (email, password) => {
-  const response = await apiCall('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password })
-  });
-  
-  // Store token in localStorage
-  if (response.token) {
-    localStorage.setItem('token', response.token);
-    localStorage.setItem('user', JSON.stringify(response.user));
-  }
-  
-  return response;
-};
-
-/**
- * Logout user
- * Removes token from localStorage
- */
-export const logoutUser = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-};
-
-/**
- * Get current user profile
- * @returns {Promise<Object>} - User object
- */
-export const getCurrentUser = async () => {
-  return apiCall('/auth/me');
-};
-
-/**
- * Update user profile
- * @param {Object} userData - Updated user data
- * @returns {Promise<Object>} - Updated user object
- */
-export const updateUserProfile = async (userData) => {
-  return apiCall('/auth/profile', {
-    method: 'PUT',
-    body: JSON.stringify(userData)
-  });
-};
-
-// ============================================
-// ARTICLES API CALLS
-// ============================================
-
-/**
- * Get all articles
- * @param {Object} filters - { category, exam, search, page, limit }
- * @returns {Promise<Object>} - { articles: [], total: number, page: number }
- */
-export const getArticles = async (filters = {}) => {
-  // Build query string from filters
-  const queryParams = new URLSearchParams();
-  
-  if (filters.category && filters.category !== 'All') {
-    queryParams.append('category', filters.category);
-  }
-  
-  if (filters.exam && filters.exam !== 'All') {
-    queryParams.append('exam', filters.exam);
-  }
-  
-  if (filters.search) {
-    queryParams.append('search', filters.search);
-  }
-  
-  if (filters.page) {
-    queryParams.append('page', filters.page);
-  }
-  
-  if (filters.limit) {
-    queryParams.append('limit', filters.limit);
-  }
-  
-  const queryString = queryParams.toString();
-  const endpoint = queryString ? `/articles?${queryString}` : '/articles';
-  
-  return apiCall(endpoint);
-};
-
-/**
- * Get single article by ID
- * @param {string|number} articleId - Article ID
- * @returns {Promise<Object>} - Article object
- */
-export const getArticle = async (articleId) => {
-  return apiCall(`/articles/${articleId}`);
-};
-
-/**
- * Search articles
- * @param {string} query - Search query
- * @returns {Promise<Object>} - { articles: [] }
- */
-export const searchArticles = async (query) => {
-  return apiCall(`/articles/search?q=${encodeURIComponent(query)}`);
-};
-
-// ============================================
-// BOOKMARKS API CALLS
-// ============================================
-
-/**
- * Get user's bookmarks
- * @returns {Promise<Object>} - { bookmarks: [] }
- */
+// Get all bookmarks (requires authentication)
 export const getBookmarks = async () => {
-  const response = await apiCall('/bookmarks');
-  return response.bookmarks || [];
+  try {
+    const response = await axios.get('http://localhost:5000/api/bookmarks');
+    return response.data.data; // Returns array of article objects
+  } catch (error) {
+    console.error('Error getting bookmarks:', error);
+    // If not authenticated, return empty array
+    if (error.response?.status === 401) {
+      return [];
+    }
+    throw error;
+  }
 };
 
-/**
- * Add bookmark
- * @param {string|number} articleId - Article ID to bookmark
- * @returns {Promise<Object>} - { bookmark: {}, message: string }
- */
+// Add bookmark (requires authentication)
 export const addBookmark = async (articleId) => {
-  return apiCall('/bookmarks', {
-    method: 'POST',
-    body: JSON.stringify({ articleId })
-  });
+  try {
+    const response = await axios.post(`http://localhost:5000/api/bookmarks/${articleId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error adding bookmark:', error);
+    throw error;
+  }
 };
 
-/**
- * Remove bookmark
- * @param {string|number} bookmarkId - Bookmark ID to remove
- * @returns {Promise<Object>} - { message: string }
- */
-export const removeBookmark = async (bookmarkId) => {
-  return apiCall(`/bookmarks/${bookmarkId}`, {
-    method: 'DELETE'
-  });
+// Remove bookmark (requires authentication)
+export const removeBookmark = async (articleId) => {
+  try {
+    const response = await axios.delete(`http://localhost:5000/api/bookmarks/${articleId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error removing bookmark:', error);
+    throw error;
+  }
 };
 
-/**
- * Check if article is bookmarked
- * @param {string|number} articleId - Article ID to check
- * @returns {Promise<boolean>} - true if bookmarked
- */
+// Check if article is bookmarked (requires authentication)
 export const checkBookmark = async (articleId) => {
   try {
-    const response = await apiCall(`/bookmarks/check/${articleId}`);
-    return response.isBookmarked || false;
+    const response = await axios.get(`http://localhost:5000/api/bookmarks/check/${articleId}`);
+    return response.data.data.isBookmarked;
   } catch (error) {
+    // If not authenticated, return false
+    if (error.response?.status === 401) {
+      return false;
+    }
+    console.error('Error checking bookmark:', error);
     return false;
   }
 };
 
 // ============================================
-// NOTIFICATIONS API CALLS
+// CALENDAR API
 // ============================================
-
-/**
- * Get user's notifications
- * @param {Object} filters - { exam, isRead }
- * @returns {Promise<Object>} - { notifications: [] }
- */
-export const getNotifications = async (filters = {}) => {
-  const queryParams = new URLSearchParams();
-  
-  if (filters.exam && filters.exam !== 'All') {
-    queryParams.append('exam', filters.exam);
+// Get all custom calendar events
+export const getCalendarEvents = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/calendar`);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error fetching calendar events:', error);
+    // If not authenticated, return empty array
+    if (error.response?.status === 401) {
+      return [];
+    }
+    throw error;
   }
-  
-  if (filters.isRead !== undefined) {
-    queryParams.append('isRead', filters.isRead);
+};
+// Create custom calendar event
+export const createCalendarEvent = async (eventData) => {
+  try {
+    const response = await axios.post(`${API_URL}/calendar`, eventData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating calendar event:', error);
+    throw error;
   }
-  
-  const queryString = queryParams.toString();
-  const endpoint = queryString ? `/notifications?${queryString}` : '/notifications';
-  
-  return apiCall(endpoint);
 };
-
-/**
- * Mark notification as read
- * @param {string|number} notificationId - Notification ID
- * @returns {Promise<Object>} - Updated notification
- */
-export const markNotificationAsRead = async (notificationId) => {
-  return apiCall(`/notifications/${notificationId}/read`, {
-    method: 'PUT'
-  });
-};
-
-/**
- * Get unread notification count
- * @returns {Promise<number>} - Count of unread notifications
- */
-export const getUnreadCount = async () => {
-  const response = await apiCall('/notifications/unread-count');
-  return response.count || 0;
-};
-
-// ============================================
-// CALENDAR API CALLS
-// ============================================
-
-/**
- * Get user's calendar events
- * @param {Object} filters - { year, month }
- * @returns {Promise<Object>} - { events: [] }
- */
-export const getCalendarEvents = async (filters = {}) => {
-  const queryParams = new URLSearchParams();
-  
-  if (filters.year) {
-    queryParams.append('year', filters.year);
-  }
-  
-  if (filters.month !== undefined) {
-    queryParams.append('month', filters.month);
-  }
-  
-  const queryString = queryParams.toString();
-  const endpoint = queryString ? `/calendar/events?${queryString}` : '/calendar/events';
-  
-  return apiCall(endpoint);
-};
-
-/**
- * Add custom calendar event
- * @param {Object} eventData - { date, label, color }
- * @returns {Promise<Object>} - Created event
- */
-export const addCalendarEvent = async (eventData) => {
-  return apiCall('/calendar/events', {
-    method: 'POST',
-    body: JSON.stringify(eventData)
-  });
-};
-
-/**
- * Update calendar event
- * @param {string|number} eventId - Event ID
- * @param {Object} eventData - Updated event data
- * @returns {Promise<Object>} - Updated event
- */
-export const updateCalendarEvent = async (eventId, eventData) => {
-  return apiCall(`/calendar/events/${eventId}`, {
-    method: 'PUT',
-    body: JSON.stringify(eventData)
-  });
-};
-
-/**
- * Delete calendar event
- * @param {string|number} eventId - Event ID
- * @returns {Promise<Object>} - { message: string }
- */
+// Delete custom calendar event
 export const deleteCalendarEvent = async (eventId) => {
-  return apiCall(`/calendar/events/${eventId}`, {
-    method: 'DELETE'
-  });
+  try {
+    const response = await axios.delete(`${API_URL}/calendar/${eventId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting calendar event:', error);
+    throw error;
+  }
 };
 
 // ============================================
-// EXPORT ALL FUNCTIONS
+// NOTIFICATIONS API
 // ============================================
 
-export default {
-  // Auth
-  registerUser,
-  loginUser,
-  logoutUser,
-  getCurrentUser,
-  updateUserProfile,
-  
-  // Articles
-  getArticles,
-  getArticle,
-  searchArticles,
-  
-  // Bookmarks
-  getBookmarks,
-  addBookmark,
-  removeBookmark,
-  checkBookmark,
-  
-  // Notifications
-  getNotifications,
-  markNotificationAsRead,
-  getUnreadCount,
-  
-  // Calendar
-  getCalendarEvents,
-  addCalendarEvent,
-  updateCalendarEvent,
-  deleteCalendarEvent
+// Get notifications
+export const getNotifications = async (filters = {}) => {
+  try {
+    const params = new URLSearchParams();
+
+    if (filters.type && filters.type !== 'All') {
+      params.append('type', filters.type);
+    }
+
+    // Support both 'category' and 'exam' for backward compatibility or clarity if needed, 
+    // but backend uses 'type' for exam type (CDS, NDA, etc.) and 'category' for notif category.
+    // The previous frontend code used 'getNotificationsByExam(selectedExam)'. 
+    // selectedExam matches 'type' in backend.
+
+    const response = await axios.get(`${API_URL}/notifications?${params}`);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    throw error;
+  }
+};
+
+// Create notification (optional)
+export const createNotification = async (notificationData) => {
+  try {
+    const response = await axios.post(`${API_URL}/notifications`, notificationData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating notification:', error);
+    throw error;
+  }
+};
+
+
+
+// ============================================
+// USER/AUTH API (Placeholder for future)
+// ============================================
+
+// Login user (placeholder)
+export const loginUser = async (credentials) => {
+  // TODO: Implement when you add authentication backend
+  console.log('Login functionality coming soon!');
+  throw new Error('Authentication not yet implemented');
+};
+
+// Register user (placeholder)
+export const registerUser = async (userData) => {
+  // TODO: Implement when you add authentication backend
+  console.log('Registration functionality coming soon!');
+  throw new Error('Authentication not yet implemented');
+};
+
+// Update user profile (placeholder)
+export const updateUserProfile = async (profileData) => {
+  // TODO: Implement when you add authentication backend
+  console.log('Profile update functionality coming soon!');
+  throw new Error('Profile update not yet implemented');
 };

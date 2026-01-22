@@ -1,82 +1,79 @@
 import { useState, useEffect } from 'react';
-import { 
-  getBookmarks as getBookmarksAPI, 
-  addBookmark as addBookmarkAPI, 
+import { useAuth } from '../context/AuthContext';
+import {
+  getBookmarks as getBookmarksAPI,
+  addBookmark as addBookmarkAPI,
   removeBookmark as removeBookmarkAPI,
   checkBookmark as checkBookmarkAPI
 } from '../services/api';
 
 export const useBookmarks = () => {
-  const [bookmarkedIds, setBookmarkedIds] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [bookmarks, setBookmarks] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const { isAuthenticated } = useAuth();
 
-  // Fetch bookmarks from API on mount
+  // Load bookmarks when user logs in
   useEffect(() => {
-    const fetchBookmarks = async () => {
-      try {
-        setLoading(true);
-        const bookmarks = await getBookmarksAPI();
-        // Extract article IDs from bookmark objects
-        const ids = bookmarks.map(bookmark => bookmark.articleId || bookmark.article?._id);
-        setBookmarkedIds(ids);
-      } catch (error) {
-        console.error('Error fetching bookmarks:', error);
-        setBookmarkedIds([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (isAuthenticated) {
+      loadBookmarks();
+    } else {
+      setBookmarks([]);
+    }
+  }, [isAuthenticated]);
 
-    fetchBookmarks();
-  }, []);
+  const loadBookmarks = async () => {
+    try {
+      setLoading(true);
+      const data = await getBookmarksAPI();
+      // Extract article IDs from populated articles
+      const bookmarkIds = data.map(article => article._id);
+      setBookmarks(bookmarkIds);
+    } catch (error) {
+      console.error('Error loading bookmarks:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const addBookmark = async (articleId) => {
+    if (!isAuthenticated) {
+      alert('Please login to bookmark articles');
+      return;
+    }
+
     try {
       await addBookmarkAPI(articleId);
-      setBookmarkedIds([...bookmarkedIds, articleId]);
-      return true;
+      setBookmarks(prev => [...prev, articleId]);
     } catch (error) {
       console.error('Error adding bookmark:', error);
-      alert('Failed to add bookmark');
-      return false;
+      alert(error.response?.data?.message || 'Failed to add bookmark');
     }
   };
 
   const deleteBookmark = async (articleId) => {
+    if (!isAuthenticated) {
+      return;
+    }
+
     try {
-      // Find bookmark ID from article ID
-      const bookmarks = await getBookmarksAPI();
-      const bookmark = bookmarks.find(b => 
-        (b.articleId || b.article?._id) === articleId
-      );
-      
-      if (bookmark) {
-        await removeBookmarkAPI(bookmark._id);
-        setBookmarkedIds(bookmarkedIds.filter(id => id !== articleId));
-        return true;
-      }
-      return false;
+      await removeBookmarkAPI(articleId);
+      setBookmarks(prev => prev.filter(id => id !== articleId));
     } catch (error) {
       console.error('Error removing bookmark:', error);
-      alert('Failed to remove bookmark');
-      return false;
+      alert(error.response?.data?.message || 'Failed to remove bookmark');
     }
   };
 
-  const checkBookmark = async (articleId) => {
-    try {
-      return await checkBookmarkAPI(articleId);
-    } catch (error) {
-      console.error('Error checking bookmark:', error);
-      return false;
-    }
+  const checkBookmark = (articleId) => {
+    return bookmarks.includes(articleId);
   };
 
   return {
-    bookmarkedIds,
+    bookmarks,
+    loading,
     addBookmark,
     deleteBookmark,
     checkBookmark,
-    loading
+    loadBookmarks
   };
 };

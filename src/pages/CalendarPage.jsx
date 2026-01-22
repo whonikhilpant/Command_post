@@ -1,19 +1,54 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X, Edit2, Trash2, Tag } from 'lucide-react';
 import { examDates, getDatesForMonth, getDatesForDay } from '../data/examDates';
-import { getCustomDates, saveCustomDate, deleteCustomDate, updateCustomDate } from '../utils/calendarStorage';
+import { getCalendarEvents, createCalendarEvent, deleteCalendarEvent } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const CalendarPage = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingDate, setEditingDate] = useState(null);
-  const [customDates, setCustomDates] = useState(getCustomDates());
+  const [customDates, setCustomDates] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [newDateLabel, setNewDateLabel] = useState('');
   const [newDateColor, setNewDateColor] = useState('slate');
+  const { isAuthenticated } = useAuth();
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+
+  // Fetch custom events from backend
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchCustomEvents();
+    } else {
+      setCustomDates([]);
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  const fetchCustomEvents = async () => {
+    try {
+      setLoading(true);
+      const events = await getCalendarEvents();
+      console.log('📅 Fetched events from backend:', events);
+      // Transform backend data to match frontend format
+      const transformed = events.map(event => ({
+        id: event._id,
+        date: event.date,
+        label: event.label,
+        color: event.color,
+        type: 'custom'
+      }));
+      console.log('✨ Transformed events:', transformed);
+      setCustomDates(transformed);
+    } catch (error) {
+      console.error('Error fetching custom events:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Get first day of month and days in month
   const firstDayOfMonth = new Date(year, month, 1).getDay();
@@ -60,29 +95,48 @@ const CalendarPage = () => {
   };
 
   // Handle add custom date
-  const handleAddCustomDate = () => {
+  const handleAddCustomDate = async () => {
     if (selectedDate && newDateLabel.trim()) {
-      const dateData = {
-        date: selectedDate.dateString,
-        label: newDateLabel.trim(),
-        color: newDateColor
-      };
-      if (saveCustomDate(dateData)) {
-        setCustomDates(getCustomDates());
-        setNewDateLabel('');
-        setNewDateColor('slate');
-        setShowAddModal(false);
-        setSelectedDate(null);
+      try {
+        const dateData = {
+          date: selectedDate.dateString,
+          label: newDateLabel.trim(),
+          color: newDateColor
+        };
+
+        const response = await createCalendarEvent(dateData);
+
+        if (response.success) {
+          await fetchCustomEvents();
+          setNewDateLabel('');
+          setNewDateColor('slate');
+          setShowAddModal(false);
+          // Update selected date to show new event
+          const updatedDates = getDatesForSpecificDay(selectedDate.day);
+          setSelectedDate({ ...selectedDate, dates: updatedDates });
+        }
+      } catch (error) {
+        alert('Failed to add custom date. Please try again.');
       }
     }
   };
 
   // Handle delete custom date
-  const handleDeleteCustomDate = (id) => {
-    if (deleteCustomDate(id)) {
-      setCustomDates(getCustomDates());
-      const updatedDates = selectedDate.dates.filter(d => d.id !== id);
-      setSelectedDate({ ...selectedDate, dates: updatedDates });
+  const handleDeleteCustomDate = async (id) => {
+    console.log('🗑️ Attempting to delete event with ID:', id);
+    try {
+      const response = await deleteCalendarEvent(id);
+      console.log('✅ Delete response:', response);
+
+      if (response.success) {
+        await fetchCustomEvents();
+        const updatedDates = selectedDate.dates.filter(d => d.id !== id);
+        setSelectedDate({ ...selectedDate, dates: updatedDates });
+      }
+    } catch (error) {
+      console.error('❌ Delete error:', error);
+      console.error('Error response:', error.response?.data);
+      alert('Failed to delete custom date. Please try again.');
     }
   };
 
@@ -104,7 +158,7 @@ const CalendarPage = () => {
     if (!dates || dates.length === 0) {
       return { bg: '', text: 'text-slate-300', border: 'border-slate-700' };
     }
-    
+
     // Use the first event's color (or prioritize exam dates over custom)
     const primaryDate = dates.find(d => d.type === 'exam') || dates[0];
     const color = primaryDate.color;
@@ -257,7 +311,7 @@ const CalendarPage = () => {
                 const hasEventsToday = datesForDay.length > 0;
                 const isTodayDate = isToday(day);
                 const isSelected = selectedDate?.day === day;
-                
+
                 // Get color styling for date block
                 const dateColors = hasEventsToday ? getDateBlockColors(datesForDay) : null;
 
@@ -265,27 +319,25 @@ const CalendarPage = () => {
                   <button
                     key={day}
                     onClick={() => handleDateClick(day)}
-                    className={`aspect-square p-2 rounded-lg border transition-all relative flex items-center justify-center ${
-                      isTodayDate
-                        ? hasEventsToday
-                          ? `${dateColors.bg} ${dateColors.border} ring-2 ring-primary-500/70 ${dateColors.hover}`
-                          : 'bg-primary-600/30 border-primary-500 ring-2 ring-primary-500/50 hover:bg-primary-600/40'
-                        : isSelected
+                    className={`aspect-square p-2 rounded-lg border transition-all relative flex items-center justify-center ${isTodayDate
+                      ? hasEventsToday
+                        ? `${dateColors.bg} ${dateColors.border} ring-2 ring-primary-500/70 ${dateColors.hover}`
+                        : 'bg-primary-600/30 border-primary-500 ring-2 ring-primary-500/50 hover:bg-primary-600/40'
+                      : isSelected
                         ? hasEventsToday
                           ? `${dateColors.bg} ${dateColors.border} ring-2 ring-primary-500/50 ${dateColors.hover}`
                           : 'bg-slate-800 border-primary-500/50 ring-2 ring-primary-500/30'
                         : hasEventsToday
-                        ? `${dateColors.bg} ${dateColors.border} ${dateColors.hover}`
-                        : 'bg-slate-800/50 border-slate-700 hover:border-slate-600 hover:bg-slate-800'
-                    }`}
+                          ? `${dateColors.bg} ${dateColors.border} ${dateColors.hover}`
+                          : 'bg-slate-800/50 border-slate-700 hover:border-slate-600 hover:bg-slate-800'
+                      }`}
                   >
-                    <div className={`text-sm font-semibold ${
-                      isTodayDate || (hasEventsToday && dateColors)
-                        ? dateColors?.text || 'text-white'
-                        : isSelected
+                    <div className={`text-sm font-semibold ${isTodayDate || (hasEventsToday && dateColors)
+                      ? dateColors?.text || 'text-white'
+                      : isSelected
                         ? 'text-slate-100'
                         : 'text-slate-300'
-                    }`}>
+                      }`}>
                       {day}
                     </div>
                     {/* Multiple events indicator */}
