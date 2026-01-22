@@ -32,7 +32,6 @@ const AdminDashboard = () => {
       description: 'View statistics and insights',
       icon: BarChart3,
       link: '/admin/analytics',
-      link: '/admin/analytics',
       color: 'bg-orange-500/20 border-orange-500/40'
     },
     {
