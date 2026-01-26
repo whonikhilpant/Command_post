@@ -17,6 +17,8 @@ import ArticlesList from './pages/admin/ArticlesList';
 import CreateArticle from './pages/admin/CreateArticle';
 import EditArticle from './pages/admin/EditArticle';
 import CreateNotification from './pages/admin/CreateNotification';
+import UsersList from './pages/admin/UsersList';
+import AnalyticsDashboard from './pages/admin/AnalyticsDashboard';
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -110,6 +112,22 @@ function App() {
               element={
                 <AdminRoute>
                   <CreateNotification />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <AdminRoute>
+                  <UsersList />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/analytics"
+              element={
+                <AdminRoute>
+                  <AnalyticsDashboard />
                 </AdminRoute>
               }
             />

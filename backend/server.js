@@ -27,6 +27,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/analytics', require('./routes/analyticsRoutes'));
+
+
 
 // Home route
 app.get('/', (req, res) => {

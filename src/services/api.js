@@ -209,10 +209,35 @@ export const createNotification = async (notificationData) => {
 };
 
 
+// ============================================
+// ANALYTICS API
+// ============================================
+
+// Get analytics stats (Admin only)
+export const getAnalyticsStats = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/analytics`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    throw error;
+  }
+};
 
 // ============================================
-// USER/AUTH API (Placeholder for future)
+// USER/AUTH API
 // ============================================
+
+// Get all users (Admin only)
+export const getAllUsers = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/users`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    throw error;
+  }
+};
 
 // Login user (placeholder)
 export const loginUser = async (credentials) => {
