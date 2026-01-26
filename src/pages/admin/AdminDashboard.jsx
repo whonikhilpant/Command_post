@@ -55,9 +55,9 @@ const AdminDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {adminCards.map((card) => (
+        {adminCards.map((card, index) => (
           <Link
-            key={card.title}
+            key={index}
             to={card.link}
             className={`card ${card.color} hover:scale-105 transition-transform`}
           >
